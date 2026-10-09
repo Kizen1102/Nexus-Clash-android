@@ -1,1 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Nexus Clash — 3D MOBA Prototype</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+*{box-sizing:border-box} html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#09111b;color:#eef6ff}
+#game{position:fixed;inset:0} canvas{display:block}
+.panel{background:linear-gradient(135deg,rgba(12,23,38,.92),rgba(18,31,49,.82));border:1px solid rgba(164,202,255,.25);box-shadow:0 8px 28px #0005;backdrop-filter:blur(8px);border-radius:12px}
+#topbar{position:fixed;top:10px;left:10px;right:10px;display:flex;justify-content:space-between;align-items:flex-start;gap:8px;pointer-events:none}
+#brand{padding:9px 12px;font-weight:900;letter-spacing:.08em;color:#a9dcff}#status{padding:9px 12px;text-align:right;font-size:12px;line-height:1.45}
+#heroPanel{position:fixed;left:10px;bottom:12px;width:min(310px,calc(100vw - 20px));padding:10px 12px}
+.name{font-weight:800;font-size:14px}.small{font-size:11px;color:#b4c8df}
+.bar{height:9px;background:#253346;border-radius:20px;overflow:hidden;margin-top:5px}.fill{height:100%;width:100%;transition:width .12s}
+#hpFill{background:linear-gradient(90deg,#39d98a,#8bf3b5)}#xpFill{background:linear-gradient(90deg,#5ca8ff,#b7a1ff);height:5px}
+#skills{position:fixed;right:12px;bottom:16px;display:flex;gap:8px;align-items:end}
+.skill{width:58px;height:58px;border-radius:50%;border:1px solid #8eb9e8;background:linear-gradient(145deg,#273f61,#101c30);color:white;font-weight:900;box-shadow:0 5px 15px #0008;position:relative;touch-action:manipulation}
+.skill span{display:block;font-size:10px;color:#c4d7ed;font-weight:600}.skill:active{transform:scale(.94)}.skill .cd{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:#07101dcc;border-radius:50%;font-size:17px}
+#controls{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;width:min(430px,calc(100vw - 28px));padding:20px}
+#controls h1{margin:0 0 7px;font-size:clamp(24px,6vw,38px);letter-spacing:.04em}#controls p{font-size:13px;line-height:1.5;color:#c5d6e8}
+button.action{border:0;border-radius:10px;background:linear-gradient(90deg,#43a4ff,#8b78ff);color:white;font-weight:900;padding:12px 20px;font-size:15px;cursor:pointer}
+#banner{position:fixed;top:27%;left:50%;transform:translateX(-50%);padding:12px 22px;font-weight:900;letter-spacing:.12em;text-align:center;display:none;font-size:clamp(18px,4vw,28px)}
+#help{position:fixed;top:74px;left:10px;padding:8px 10px;font-size:11px;max-width:220px;line-height:1.45}
+#mini{position:fixed;right:10px;top:76px;width:118px;height:118px;border-radius:10px;border:1px solid #7892b1;background:#0c1826dd}
+#mobileHint{display:none}
+@media(max-width:650px){#mini{width:88px;height:88px;top:95px}#help{top:65px;max-width:170px;font-size:10px}#status{font-size:10px;padding:7px}#heroPanel{bottom:10px;width:180px;padding:8px}#skills{right:8px;bottom:12px;gap:5px}.skill{width:49px;height:49px}#mobileHint{display:block;font-size:10px;color:#d5e5f8}}
+</style>
+</head>
+<body>
+<div id="game"></div>
+<div id="topbar"><div id="brand" class="panel">NEXUS CLASH <span style="font-size:10px;color:#d8e8ff">PROTOTYPE</span></div><div id="status" class="panel">BLUE CORE <b id="blueCore">100%</b> &nbsp;|&nbsp; RED CORE <b id="redCore">100%</b><br><span id="matchState">READY TO DEPLOY</span></div></div>
+<div id="help" class="panel">WASD / arrow keys: move · Mouse: aim<br>Click / Space: attack · Q: burst · E: dash · R: nova<br><span id="mobileHint">Touch: drag left side to move; tap skills to cast.</span></div>
+<canvas id="mini" width="180" height="180"></canvas>
+<div id="heroPanel" class="panel"><div class="name">AURORA <span id="level" style="color:#9ecbff">LV 1</span></div><div class="small">Nexus Vanguard · <span id="gold">0</span> gold</div><div class="bar"><div id="hpFill" class="fill"></div></div><div class="small" id="hpText">HP 100 / 100</div><div class="bar"><div id="xpFill" class="fill" style="width:0%"></div></div></div>
+<div id="skills"><button class="skill" id="attackBtn">ATK<span>Basic</span></button><button class="skill" id="qBtn">Q<span>Arc Bolt</span><div class="cd" id="qCd"></div></button><button class="skill" id="eBtn">E<span>Dash</span><div class="cd" id="eCd"></div></button><button class="skill" id="rBtn">R<span>Nova</span><div class="cd" id="rCd"></div></button></div>
+<div id="banner" class="panel"></div>
+<div id="controls" class="panel"><h1>NEXUS CLASH</h1><div style="color:#9ecbff;font-weight:800;letter-spacing:.18em">3D MOBA PROTOTYPE</div><p>Push the lane, defeat enemy minions, destroy the red tower, then break the enemy Nexus. Your allied minions will help you advance.</p><p><b>Desktop:</b> WASD to move, mouse to aim, click/Space to attack, Q/E/R for skills.<br><b>Mobile:</b> drag on the left side to move, use the skill buttons on the right.</p><button id="startBtn" class="action">START MATCH</button><p class="small">Original prototype · single-player · Three.js loaded from CDN</p></div>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js';
 
+const mount=document.querySelector('#game');
+const scene=new THREE.Scene(); scene.background=new THREE.Color(0x081522); scene.fog=new THREE.Fog(0x081522,34,78);
+const camera=new THREE.PerspectiveCamera(48,innerWidth/innerHeight,.1,150);
+camera.position.set(0,19,25);
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.8));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;mount.appendChild(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xbddcff,0x25351f,2.1));
+const sun=new THREE.DirectionalLight(0xffe3bd,2.5);sun.position.set(-10,22,12);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);scene.add(sun);
+const mat=(color,roughness=.82,metalness=0)=>new THREE.MeshStandardMaterial({color,roughness,metalness});
+const mats={grass:mat(0x234936),grass2:mat(0x2c5b40),lane:mat(0x777b7c),edge:mat(0x4a5d67),blue:mat(0x3a9cff,.4),red:mat(0xff5269,.4),gold:mat(0xffcf73,.4),dark:mat(0x101c2b),stone:mat(0x7d8d98),leaf:mat(0x2d7049),hp:mat(0x54ef9c),enemyhp:mat(0xff6372),white:mat(0xeaf6ff)};
+function box(parent,w,h,d,material,x,y,z){const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),material);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;parent.add(o);return o}
+function sphere(parent,r,material,x,y,z){const o=new THREE.Mesh(new THREE.SphereGeometry(r,12,10),material);o.position.set(x,y,z);o.castShadow=true;parent.add(o);return o}
+const ground=box(scene,58,.5,48,mats.grass,0,-.35,0);ground.receiveShadow=true;
+box(scene,58,.4,8,mats.edge,0,-.03,0);box(scene,56,.43,5.6,mats.lane,0,.03,0);
+for(let z of [-2.7,2.7])box(scene,56,.1,.18,mats.gold,0,.27,z);
+for(let i=0;i<20;i++){let x=-26+i*2.7;for(let z of [-8,8]){let trunk=box(scene,.35,1,.35,mat(0x64452e),x,.45,z);sphere(scene,.9,mats.leaf,x,1.5,z);sphere(scene,.65,mats.leaf,x+.4,1.95,z-.2)}}
+function tower(x,z,team){let g=new THREE.Group();g.position.set(x,0,z);scene.add(g);let color=team==='blue'?mats.blue:mats.red;box(g,2,.8,2,mats.stone,0,.4,0);let c=new THREE.Mesh(new THREE.CylinderGeometry(.65,.9,2.8,8),color);c.position.y=2; c.castShadow=true;g.add(c);sphere(g,.48,mats.gold,0,3.65,0);for(let i=0;i<4;i++){let a=i*Math.PI/2;box(g,.28,1.3,.28,mats.stone,Math.cos(a)*.9,2.2,Math.sin(a)*.9)}return {group:g,x,z,team,hp:team==='blue'?700:700,max:700,range:8,cool:0,alive:true}}
+function core(x,z,team){let g=new THREE.Group();g.position.set(x,0,z);scene.add(g);let color=team==='blue'?mats.blue:mats.red;box(g,3.4,1.2,3.4,mats.stone,0,.6,0);let crystal=new THREE.Mesh(new THREE.OctahedronGeometry(1.25),color);crystal.position.y=2.5;crystal.castShadow=true;g.add(crystal);const ring=new THREE.Mesh(new THREE.TorusGeometry(1.55,.12,8,24),mats.gold);ring.rotation.x=Math.PI/2;ring.position.y=1.6;g.add(ring);return {group:g,x,z,team,hp:team==='blue'?1800:1800,max:1800,alive:true}}
+const blueTower=tower(-18,0,'blue'),redTower=tower(12,0,'red'),blueCore=core(-25,0,'blue'),redCore=core(25,0,'red');
+function makeUnit(team,type='minion',x=0,z=0){
+ const g=new THREE.Group();g.position.set(x,0,z);scene.add(g);let color=team==='blue'?mats.blue:mats.red;let scale=type==='hero'?1.15:.68;
+ const body=new THREE.Mesh(new THREE.CapsuleGeometry(.45*scale,.65*scale,4,8),color);body.position.y=.75*scale;body.castShadow=true;g.add(body);
+ sphere(g,.3*scale,mats.gold,0,1.45*scale,0);
+ if(type==='hero'){box(g,.18,.9,.18,mats.gold,.48,.8,0);sphere(g,.12,mats.white,0,1.52, .25)}
+ const hpbg=box(g,1.1*scale,.09,.08,mat(0x14202b),0,2*scale,0);hpbg.castShadow=false;
+ const hpfill=box(g,1.04*scale,.07,.06,team==='blue'?mats.hp:mats.enemyhp,0,2.01*scale,.04);hpfill.castShadow=false;
+ return {group:g,team,type,hp:type==='hero'?220:75,max:type==='hero'?220:75,damage:type==='hero'?23:9,speed:type==='hero'?7:2.1,range:type==='hero'?7:1.6,cool:0,attackRate:type==='hero'?.65:1.15,alive:true,hpfill,hpbg,respawn:0,skillCd:{q:0,e:0,r:0},gold:0,xp:0,level:1};
+}
+const hero=makeUnit('blue','hero',-21,1);
+const units=[hero], projectiles=[], effects=[];
+function spawnWave(){for(let i=0;i<3;i++){units.push(makeUnit('blue','minion',-17-i*.7,(i-1)*1.5));units.push(makeUnit('red','minion',17+i*.7,(i-1)*1.5))}}
+spawnWave();let waveTimer=0;
+const keys={};let running=false,ended=false,last=performance.now(),attackHeld=false,mouse={x:innerWidth*.6,y:innerHeight*.5,down:false},moveTouch=null;
+function aimPoint(){const ndc=new THREE.Vector2(mouse.x/innerWidth*2-1,-mouse.y/innerHeight*2+1);const ray=new THREE.Raycaster();ray.setFromCamera(ndc,camera);const plane=new THREE.Plane(new THREE.Vector3(0,1,0),0);const p=new THREE.Vector3();ray.ray.intersectPlane(plane,p);return p}
+function shoot(from,target,damage,team,color=team==='blue'?0x6ac5ff:0xff6b7e,speed=15){let start=from.group.position.clone();start.y=1.15;let dest=target.group.position.clone();dest.y=.8;let mesh=new THREE.Mesh(new THREE.SphereGeometry(.2,8,8),mat(color,.3,.2));mesh.position.copy(start);scene.add(mesh);projectiles.push({mesh,from,target,team,damage,speed,life:2})}
+function burst(position,color,radius){let mesh=new THREE.Mesh(new THREE.SphereGeometry(.5,16,12),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.65,wireframe:true}));mesh.position.copy(position);mesh.position.y=.7;scene.add(mesh);effects.push({mesh,t:0,duration:.35,radius})}
+function closestEnemy(unit,maxRange=Infinity){let best=null,bd=maxRange;for(const u of units){if(!u.alive||u.team===unit.team||u===unit)continue;let d=u.group.position.distanceTo(unit.group.position);if(d<bd){bd=d;best=u}}return {target:best,distance:bd}}
+function takeDamage(target,damage,source){if(!target.alive)return;target.hp-=damage;burst(target.group.position,target.team==='blue'?0x6abfff:0xff6a83,.5);if(target.hp<=0){target.hp=0;target.alive=false;target.group.visible=false;if(source&&source.team==='blue'){hero.gold+=target.type==='hero'?120:target.type==='minion'?25:80;hero.xp+=target.type==='hero'?90:25;if(hero.xp>=100){hero.xp-=100;hero.level++;hero.max+=25;hero.hp=Math.min(hero.max,hero.hp+45);hero.damage+=3}}if(target.type==='hero'){target.respawn=5;if(target===hero){setBanner('YOU WERE DEFEATED');}}}}
+function damageStructure(s,damage,team){if(!s.alive||s.team===team)return;s.hp-=damage;if(s.hp<=0){s.hp=0;s.alive=false;s.group.visible=false;if(s===redCore)finish(true);if(s===blueCore)finish(false);if(s===redTower)redTower.alive=false}}
+function finish(win){ended=true;running=false;setBanner(win?'VICTORY — ENEMY NEXUS DESTROYED':'DEFEAT — YOUR NEXUS FELL')}
+function setBanner(text){const b=document.querySelector('#banner');b.textContent=text;b.style.display='block'}
+function cast(skill){if(!running||!hero.alive)return;if(hero.skillCd[skill]>0)return;const pos=hero.group.position;const aim=aimPoint();let dir=new THREE.Vector3(aim.x-pos.x,0,aim.z-pos.z);if(dir.lengthSq()<.1)dir.set(1,0,0);dir.normalize();
+ if(skill==='q'){hero.skillCd.q=4;let target=closestEnemy(hero,13).target;if(target)shoot(hero,target,55+hero.level*5,'blue',0x7ce5ff,22);else{let dummy={group:{position:pos.clone().add(dir.multiplyScalar(8))},team:'red',alive:true,type:'minion'};shoot(hero,dummy,0,'blue',0x7ce5ff,22)}}
+ if(skill==='e'){hero.skillCd.e=6;hero.group.position.addScaledVector(dir,5);hero.group.position.x=THREE.MathUtils.clamp(hero.group.position.x,-27,27);hero.group.position.z=THREE.MathUtils.clamp(hero.group.position.z,-19,19);burst(hero.group.position,0x8de6ff,2)}
+ if(skill==='r'){hero.skillCd.r=12;burst(hero.group.position,0xa88aff,7);for(const u of units)if(u.alive&&u.team==='red'&&u.group.position.distanceTo(pos)<7)takeDamage(u,90+hero.level*10,hero);if(redTower.alive&&new THREE.Vector3(redTower.x,0,redTower.z).distanceTo(pos)<7)damageStructure(redTower,110,'blue');if(redCore.alive&&new THREE.Vector3(redCore.x,0,redCore.z).distanceTo(pos)<7&& !redTower.alive)damageStructure(redCore,110,'blue')}
+}
+function playerAttack(){if(!running||!hero.alive)return;let aim=aimPoint(),target=closestEnemy(hero,hero.range+2).target;if(target){let desired=new THREE.Vector3(target.group.position.x-hero.group.position.x,0,target.group.position.z-hero.group.position.z);hero.group.rotation.y=Math.atan2(desired.x,desired.z);shoot(hero,target,hero.damage,'blue',0x79cfff,19)}else if(redTower.alive&&hero.group.position.distanceTo(new THREE.Vector3(redTower.x,0,redTower.z))<hero.range+2)damageStructure(redTower,hero.damage,'blue');else if(!redTower.alive&&redCore.alive&&hero.group.position.distanceTo(new THREE.Vector3(redCore.x,0,redCore.z))<hero.range+2)damageStructure(redCore,hero.damage,'blue');}
+function start(){document.querySelector('#controls').style.display='none';document.querySelector('#banner').style.display='none';running=true;ended=false;setBanner('');document.querySelector('#matchState').textContent='MATCH IN PROGRESS';}
+document.querySelector('#startBtn').onclick=start;
+document.querySelector('#attackBtn').onclick=playerAttack;document.querySelector('#qBtn').onclick=()=>cast('q');document.querySelector('#eBtn').onclick=()=>cast('e');document.querySelector('#rBtn').onclick=()=>cast('r');
+addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;if(e.code==='Space'){e.preventDefault();playerAttack()}if(e.key.toLowerCase()==='q')cast('q');if(e.key.toLowerCase()==='e')cast('e');if(e.key.toLowerCase()==='r')cast('r');if(e.key.toLowerCase()==='enter'&&ended)location.reload()});
+addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+renderer.domElement.addEventListener('pointermove',e=>{mouse.x=e.clientX;mouse.y=e.clientY});
+renderer.domElement.addEventListener('pointerdown',e=>{mouse.x=e.clientX;mouse.y=e.clientY;if(e.pointerType==='touch'&&e.clientX<innerWidth*.48){moveTouch={x:e.clientX,y:e.clientY};}else if(e.pointerType==='mouse'&&e.button===0)playerAttack()});
+renderer.domElement.addEventListener('pointerup',e=>{if(e.pointerType==='touch')moveTouch=null});
+renderer.domElement.addEventListener('pointermove',e=>{if(e.pointerType==='touch'&&moveTouch){moveTouch={x:e.clientX,y:e.clientY,active:true}}});
+function update(dt){if(!running)return;
+ for(let k of ['q','e','r'])hero.skillCd[k]=Math.max(0,hero.skillCd[k]-dt);
+ const move=new THREE.Vector3((keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0),0,(keys.s||keys.arrowdown?1:0)-(keys.w||keys.arrowup?1:0));
+ if(moveTouch&&moveTouch.active){let dx=moveTouch.x-innerWidth*.22,dy=moveTouch.y-innerHeight*.72;move.set(THREE.MathUtils.clamp(dx/45,-1,1),0,THREE.MathUtils.clamp(dy/45,-1,1))}
+ if(move.lengthSq()>0){move.normalize();hero.group.position.addScaledVector(move,hero.speed*dt);hero.group.rotation.y=Math.atan2(move.x,move.z);hero.group.position.x=THREE.MathUtils.clamp(hero.group.position.x,-27,27);hero.group.position.z=THREE.MathUtils.clamp(hero.group.position.z,-19,19)}
+ hero.cool-=dt;
+ // Hero can attack structures and units automatically when attack is ready.
+ if(hero.cool<=0){let en=closestEnemy(hero,hero.range);if(en.target){shoot(hero,en.target,hero.damage,'blue',0x79cfff,19);hero.cool=hero.attackRate}else if(redTower.alive&&hero.group.position.distanceTo(new THREE.Vector3(redTower.x,0,redTower.z))<hero.range+1){damageStructure(redTower,hero.damage,'blue');hero.cool=hero.attackRate}else if(!redTower.alive&&redCore.alive&&hero.group.position.distanceTo(new THREE.Vector3(redCore.x,0,redCore.z))<hero.range+1){damageStructure(redCore,hero.damage,'blue');hero.cool=hero.attackRate}}
+ for(const u of units){if(!u.alive||u===hero)continue;u.cool-=dt;const enemy=closestEnemy(u,u.range+1.5);
+   let target=enemy.target;
+   // Minions prioritize nearby enemy units, then enemy structures.
+   if(target){if(enemy.distance>u.range){let d=target.group.position.clone().sub(u.group.position);d.y=0;u.group.position.addScaledVector(d.normalize(),u.speed*dt)}else if(u.cool<=0){shoot(u,target,u.damage,u.team, u.team==='blue'?0x65b8ff:0xff6a7c,12);u.cool=u.attackRate}}
+   else {let structure=u.team==='blue'?(redTower.alive?redTower:redCore):(blueTower.alive?blueTower:blueCore);if(structure.alive){let dest=new THREE.Vector3(structure.x,0,structure.z);let d=dest.clone().sub(u.group.position);d.y=0;if(d.length()>u.range+1)u.group.position.addScaledVector(d.normalize(),u.speed*dt);else if(u.cool<=0){damageStructure(structure,u.damage,u.team);u.cool=u.attackRate}}}
+ }
+ // Enemy hero AI seeks and attacks the player; allied minions support lane push.
+ const enemyHero=units.find(u=>u.type==='hero'&&u.team==='red');
+ if(!enemyHero){const bot=makeUnit('red','hero',18,-1);units.push(bot)}
+ for(const u of units.filter(u=>u.type==='hero'&&u.team==='red'&&u.alive)){u.cool-=dt;let d=hero.group.position.clone().sub(u.group.position);d.y=0;if(hero.alive&&d.length()>u.range)u.group.position.addScaledVector(d.normalize(),u.speed*.55*dt);else if(hero.alive&&u.cool<=0){shoot(u,hero,u.damage,u.team,0xff5b75,13);u.cool=1.1}}
+ for(let i=projectiles.length-1;i>=0;i--){const p=projectiles[i];p.life-=dt;if(!p.target||(!p.target.alive&&p.target.type!=='dummy')){scene.remove(p.mesh);projectiles.splice(i,1);continue}let dest=p.target.group.position.clone();dest.y=.9;let d=dest.sub(p.mesh.position);if(d.length()<.55){if(p.target.type==='tower'||p.target.type==='core')damageStructure(p.target,p.damage,p.team);else if(p.damage>0)takeDamage(p.target,p.damage,p.from);scene.remove(p.mesh);projectiles.splice(i,1)}else{p.mesh.position.addScaledVector(d.normalize(),p.speed*dt)}if(p.life<=0){scene.remove(p.mesh);projectiles.splice(i,1)}}
+ for(let i=effects.length-1;i>=0;i--){let e=effects[i];e.t+=dt;let k=e.t/e.duration;e.mesh.scale.setScalar(.5+k*e.radius);e.mesh.material.opacity=.65*(1-k);if(k>=1){scene.remove(e.mesh);effects.splice(i,1)}}
+ waveTimer+=dt;if(waveTimer>12){waveTimer=0;spawnWave()}
+ // enemy tower attacks nearest blue unit in range
+ if(redTower.alive){redTower.cool=(redTower.cool||0)-dt;if(redTower.cool<=0){let near=units.filter(u=>u.alive&&u.team==='blue').sort((a,b)=>a.group.position.distanceTo(redTower.group.position)-b.group.position.distanceTo(redTower.group.position))[0];if(near&&near.group.position.distanceTo(redTower.group.position)<redTower.range){shoot(redTower,near,22,'red',0xffa0a7,16);redTower.cool=1.25}}}
+ if(blueTower.alive){blueTower.cool=(blueTower.cool||0)-dt;if(blueTower.cool<=0){let near=units.filter(u=>u.alive&&u.team==='red').sort((a,b)=>a.group.position.distanceTo(blueTower.group.position)-b.group.position.distanceTo(blueTower.group.position))[0];if(near&&near.group.position.distanceTo(blueTower.group.position)<blueTower.range){shoot(blueTower,near,22,'blue',0x8ed5ff,16);blueTower.cool=1.25}}}
+ if(!hero.alive&&hero.respawn>0){hero.respawn-=dt;if(hero.respawn<=0){hero.alive=true;hero.hp=hero.max;hero.group.visible=true;hero.group.position.set(-21,0,1)}}
+ updateUI();
+}
+function updateUI(){document.querySelector('#hpFill').style.width=(100*hero.hp/hero.max)+'%';document.querySelector('#hpText').textContent=`HP ${Math.ceil(hero.hp)} / ${hero.max}`;document.querySelector('#level').textContent='LV '+hero.level;document.querySelector('#gold').textContent=hero.gold;document.querySelector('#xpFill').style.width=hero.xp+'%';document.querySelector('#blueCore').textContent=Math.ceil(100*blueCore.hp/blueCore.max)+'%';document.querySelector('#redCore').textContent=Math.ceil(100*redCore.hp/redCore.max)+'%';for(let k of ['q','e','r']){let cd=hero.skillCd[k],el=document.querySelector('#'+k+'Cd');el.style.display=cd>0?'flex':'none';el.textContent=cd>0?cd.toFixed(1):''}document.querySelector('#matchState').textContent=ended?'MATCH ENDED':'MATCH IN PROGRESS';drawMini()}
+function drawMini(){const c=document.querySelector('#mini'),ctx=c.getContext('2d');ctx.clearRect(0,0,180,180);ctx.fillStyle='#173a2c';ctx.fillRect(0,0,180,180);ctx.fillStyle='#727b7e';ctx.fillRect(8,84,164,12);function dot(x,z,color,r){ctx.fillStyle=color;ctx.beginPath();ctx.arc(90+x/58*160,90+z/48*160,r,0,Math.PI*2);ctx.fill()}dot(hero.group.position.x,hero.group.position.z,'#8ce1ff',4);for(let u of units)if(u.alive&&u!==hero)dot(u.group.position.x,u.group.position.z,u.team==='blue'?'#4da8ff':'#ff526d',2);dot(blueCore.x,0,'#55aaff',5);dot(redCore.x,0,'#ff526d',5)}
+function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-last)/1000,.04);last=now;update(dt);camera.position.x=hero.group.position.x*.35;camera.position.z=hero.group.position.z+25;camera.lookAt(hero.group.position.x,0,hero.group.position.z);renderer.render(scene,camera)}
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+updateUI();requestAnimationFrame(frame);
+</script>
+</body>
+</html>
