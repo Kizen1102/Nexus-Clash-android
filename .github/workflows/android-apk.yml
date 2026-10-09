@@ -6,15 +6,18 @@ push:
 branches:
 - main
 
+permissions:
+contents: read
+
 jobs:
 build:
 runs-on: ubuntu-latest
 
 steps:
-  - name: Checkout
+  - name: Checkout repository
     uses: actions/checkout@v4
 
-  - name: Setup Node
+  - name: Setup Node.js
     uses: actions/setup-node@v4
     with:
       node-version: 22
@@ -28,17 +31,25 @@ steps:
   - name: Install dependencies
     run: npm install
 
+  - name: Check web app
+    run: test -f www/index.html
+
   - name: Add Android platform
     run: npx cap add android
 
-  - name: Sync web app
+  - name: Sync Capacitor
     run: npx cap sync android
 
-  - name: Build APK
-    run: cd android && chmod +x gradlew && ./gradlew assembleDebug
+  - name: Build debug APK
+    run: |
+      cd android
+      chmod +x gradlew
+      ./gradlew assembleDebug
 
-  - name: Upload APK
+  - name: Upload APK artifact
     uses: actions/upload-artifact@v4
     with:
       name: nexus-clash-debug-apk
       path: android/app/build/outputs/apk/debug/app-debug.apk
+      if-no-files-found: error
+      retention-days: 7
