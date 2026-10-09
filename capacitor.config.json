@@ -1,0 +1,8 @@
+{
+  "appId": "com.nexusclash.moba",
+  "appName": "Nexus Clash",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  }
+}
